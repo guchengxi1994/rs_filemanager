@@ -192,6 +192,37 @@ impl Folder {
         }
     }
 
+    pub fn move_item_to(&mut self, to_id: i64, item: FileOrFolder) {
+        match item {
+            FileOrFolder::File(mut f) => {
+                if to_id == f.parent_id {
+                    return;
+                }
+                self.remove_a_file_from_current_folder(f.parent_id, f.clone());
+                f.parent_id = to_id;
+                self.add_a_file_to_current_folder(to_id, f);
+            }
+            FileOrFolder::Folder(f) => match f.parent_id {
+                Some(p) => {
+                    if p == to_id {
+                        return;
+                    }
+                    let _folder = self.pop_folder(f.clone());
+                    match _folder {
+                        Some(mut _f) => {
+                            _f.parent_id = Some(to_id);
+                            self.add_a_folder_to_current_folder(to_id, _f);
+                        }
+                        None => {
+                            println!("[rust-connot-find-folder-error]");
+                        }
+                    }
+                }
+                None => {}
+            },
+        }
+    }
+
     /// 删除，保留子数据
     pub fn remove_a_folder_from_current_folder_keep_children(
         &mut self,
@@ -311,6 +342,37 @@ impl Folder {
         }
     }
 
+    pub fn get_parent_id_by_item_id(&self, is_folder: bool, item_id: i64) -> i64 {
+        let mut res = -1;
+
+        if is_folder {
+            let f = self.folders();
+            for i in f {
+                if i.folder_id == item_id {
+                    res = i.folder_id;
+                    break;
+                } else {
+                    let _r = i.get_parent_id_by_item_id(is_folder, item_id);
+                    if _r != -1 {
+                        res = _r;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        } else {
+            let f = self.files();
+            for i in f {
+                if i.file_id == item_id {
+                    res = i.file_id;
+                    break;
+                }
+            }
+        }
+        res
+    }
+
     fn get_folder_by_id(&self, current_id: i64) -> Option<&Folder> {
         if self.folder_id == current_id {
             return Some(self);
@@ -379,6 +441,33 @@ impl Folder {
                 }
             },
         })
+    }
+
+    pub fn pop_folder(&mut self, child: Folder) -> Option<Folder> {
+        let mut i: i64 = -1;
+        let mut x: Option<Folder> = None;
+        for f in &self.children {
+            match f {
+                FileOrFolder::File(_) => {
+                    i += 1;
+                }
+                FileOrFolder::Folder(f) => {
+                    i += 1;
+                    if child.folder_id == f.folder_id {
+                        x = Some(f.clone());
+                        break;
+                    }
+                }
+            }
+        }
+
+        if i == -1 {
+            return None;
+        }
+
+        let _ = self.children.remove(i as usize);
+
+        return x;
     }
 
     pub fn to_file(&self, s: String) {
